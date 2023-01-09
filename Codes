@@ -1,0 +1,67 @@
+# %%
+import pandas as pd
+import numpy as np
+import altair as alt
+from vega_datasets import data
+
+# %%
+df=pd.read_csv(r'C:\Users\Sookie\Desktop\6380\Assignment 12\JHU.csv')
+
+# %%
+df.head()
+
+# %%
+df=df[['Countyname','ST_Name','ST_Abbr','ST_ID','FIPS','FatalityRa','Confirmed','Deaths','TotalPop']]
+
+# %%
+df=df.head(3250)
+
+# %%
+df.head()
+
+# %%
+alt.Chart(df).transform_aggregate(
+    count='sum(Confirmed):Q',
+    groupby=['ST_Name']
+).transform_window(
+    rank='rank(count)',
+    sort=[alt.SortField('count',order='descending')]
+).transform_filter(
+    alt.datum.rank<11
+).mark_bar().encode(
+    y=alt.Y('ST_Name:N',sort='-x'),
+    x='count:Q'
+)
+
+# %%
+input_dropdown=alt.binding_select(options=['New York','California','Florida','Texas','New Jersey'])
+selection=alt.selection_single(fields=['ST_Name'],bind=input_dropdown,name='State')
+color=alt.condition(selection,
+                   alt.Color('ST_Name:N',legend=None),
+                   alt.value('lightgray'))
+alt.Chart(df).mark_point().encode(
+    x=alt.X('Confirmed:Q',scale=alt.Scale(domain=[0,50000])),
+    y=alt.Y('Deaths:Q',scale=alt.Scale(domain=[0,4000])),
+    color=color,
+    tooltip=['Countyname:N','ST_Name']
+).add_selection(
+    selection
+).properties(
+width=800,
+height=500
+).interactive()
+
+# %%
+counties=alt.topo_feature(data.us_10m.url,'counties')
+alt.Chart(counties).mark_geoshape().encode(
+color=alt.Color('FatalityRa:Q',scale=alt.Scale(domain=[1,10],scheme='bluepurple')),
+tooltip=['FatalityRa:Q']
+).transform_lookup(
+lookup='id',
+from_=alt.LookupData(df,'FIPS',['FatalityRa'])
+).project(
+type='albersUsa'
+).properties(
+width=500,
+height=300
+)
